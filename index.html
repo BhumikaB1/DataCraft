@@ -571,35 +571,45 @@
     </div>
 
     <!-- ================= BOTTOM SHEET 3: PASTE CSV ================= -->
-    <div id="csvSheet" class="bottom-sheet closed absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex flex-col justify-end">
-      <div class="bg-white rounded-t-[32px] p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
-        <div class="w-10 h-1.5 bg-slate-300 rounded-full mx-auto -mt-1 mb-2"></div>
+<!-- =====================================================================
+     CSV & DATASET IMPORT BOTTOM SHEET / MODAL
+     ===================================================================== -->
+    <div id="csvSheet" class="m3-modal-sheet" style="display: none;">
+      <div class="m3-sheet-scrim" onclick="closeSheet('csvSheet')"></div>
+      <div class="m3-sheet-content">
+        <div class="m3-sheet-drag-handle"></div>
         
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div>
-            <h3 class="text-base font-bold text-slate-900">Import CSV / Delimited Text</h3>
-            <p class="text-[11px] text-slate-500">First line must contain headers</p>
-          </div>
-          <button onclick="closeSheet('csvSheet')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
-            <i class="fa-solid fa-xmark"></i>
+        <div class="m3-sheet-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="margin: 0; font-size: 18px; font-weight: 700;">Import Dataset</h3>
+          <button type="button" class="icon-btn" onclick="closeSheet('csvSheet')">✕</button>
+        </div>
+
+        <!-- File Upload Options -->
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <input type="file" id="csvFileInput" accept=".csv, .txt, .json" style="display: none;" onchange="handleDatasetFileUpload(event)">
+          <button type="button" class="btn-m3 btn-m3-tonal" onclick="document.getElementById('csvFileInput').click()" style="flex: 1;">
+            📁 Upload File (.csv / .json)
+          </button>
+          <button type="button" class="btn-m3 btn-m3-tonal" onclick="loadSampleCsvText()" style="flex: 1;">
+            ✨ Load Sample CSV
           </button>
         </div>
 
-        <div class="space-y-3 text-xs">
-          <textarea id="rawCsvText" rows="6" placeholder="Month,Sales,Expenses&#10;Jan,1200,900&#10;Feb,1500,1100&#10;Mar,1800,1250" class="w-full font-mono bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-800 focus:outline-blue-600 text-[11px]"></textarea>
-          
-          <div class="flex gap-2">
-            <button onclick="loadSampleCsvText()" class="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-medium">
-              Load Example
-            </button>
-            <button onclick="processCsvInput()" class="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md">
-              Parse & Overwrite Dataset
-            </button>
-          </div>
+        <!-- Textarea for Raw Data Input -->
+        <div style="margin-bottom: 12px;">
+          <label for="rawCsvText" style="display: block; font-size: 12px; margin-bottom: 4px; color: var(--md-sys-color-outline);">
+            Or paste raw CSV / JSON text below:
+          </label>
+          <textarea id="rawCsvText" class="m3-input" rows="8" style="width: 100%; box-sizing: border-box; font-family: monospace; font-size: 12px; padding: 10px; border-radius: 12px; resize: vertical;" placeholder="Quarter,Revenue ($),Cost ($),Customers&#10;Q1,45000,28000,120&#10;Q2,62000,34000,185"></textarea>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+          <button type="button" class="btn-m3 btn-m3-tonal" onclick="clearCsvInput()">Clear</button>
+          <button type="button" class="btn-m3" onclick="processCsvInput()">Parse & Apply</button>
         </div>
       </div>
     </div>
-
     <!-- Android In-App Snackbar Alert Message -->
     <div id="androidSnackbar" class="fixed bottom-20 left-6 right-6 mx-auto max-w-xs z-50 bg-[#2D3033] text-white px-4 py-3 rounded-2xl shadow-xl flex items-center justify-between transition-all transform translate-y-32 opacity-0 duration-300 pointer-events-none">
       <span id="snackbarMessage" class="text-xs font-medium">Action completed</span>
@@ -1199,17 +1209,32 @@
         showSnackbar(`Added column "${cleanName}"`);
       }
     }
-
+    
     /* =====================================================================
-       CSV IMPORT & PARSING
+       CSV & DATASET IMPORT, PARSING & FILE INGESTION
        ===================================================================== */
-
+    
+    /** Open CSV Import Sheet */
     function openCsvModal() {
-      openSheet('csvSheet');
+      if (typeof openSheet === 'function') {
+        openSheet('csvSheet');
+      } else {
+        const sheet = document.getElementById('csvSheet');
+        if (sheet) sheet.style.display = 'block';
+      }
     }
 
+    /** Clear textarea */
+    function clearCsvInput() {
+      const el = document.getElementById('rawCsvText');
+      if (el) el.value = '';
+    }
+
+    /** Load Sample CSV Data */
     function loadSampleCsvText() {
-      document.getElementById('rawCsvText').value = 
+      const textarea = document.getElementById('rawCsvText');
+      if (!textarea) return;
+      textarea.value = 
 `Quarter,Revenue ($),Cost ($),Customers
 Q1,45000,28000,120
 Q2,62000,34000,185
@@ -1217,49 +1242,186 @@ Q3,58000,31000,160
 Q4,89000,42000,260`;
     }
 
+    /** Robust Line Splitter that respects quoted CSV commas */
+    function splitCsvLine(line) {
+      const values = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"' || char === "'") {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim().replace(/^["']|["']$/g, ''));
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim().replace(/^["']|["']$/g, ''));
+      return values;
+    }
+
+    /** Handle Upload of CSV or JSON file */
+    function handleDatasetFileUpload(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      const fileName = file.name.toLowerCase();
+
+      reader.onload = function(e) {
+        const content = e.target.result;
+        const textarea = document.getElementById('rawCsvText');
+        if (textarea) textarea.value = content;
+
+        if (fileName.endsWith('.json')) {
+          processJsonInput(content, file.name);
+        } else {
+          processCsvInput();
+        }
+      };
+
+      reader.onerror = function() {
+        if (typeof showSnackbar === 'function') {
+          showSnackbar('Failed to read uploaded file');
+        } else {
+          alert('Failed to read uploaded file');
+        }
+      };
+
+      reader.readAsText(file);
+      // Reset input value so the same file can be chosen again if needed
+      event.target.value = '';
+    }
+
+    /** Process Raw JSON text or array */
+    function processJsonInput(jsonText, customName) {
+      try {
+        const parsed = JSON.parse(jsonText);
+        const dataArr = Array.isArray(parsed) ? parsed : (parsed.data || [parsed]);
+
+        if (!dataArr || !dataArr.length) {
+          throw new Error('Empty JSON dataset');
+        }
+
+        const headers = Object.keys(dataArr[0]);
+        if (!headers.length) throw new Error('No keys found in JSON');
+
+        // Populate appState
+        appState.columns = headers;
+        appState.rows = dataArr.map(row => {
+          const item = {};
+          headers.forEach(h => {
+            const val = row[h];
+            if (!isNaN(val) && val !== '' && val !== null && typeof val !== 'boolean') {
+              item[h] = parseFloat(val);
+            } else {
+              item[h] = val !== undefined && val !== null ? val : '';
+            }
+          });
+          return item;
+        });
+
+        appState.xCol = headers[0];
+        // Pick first numeric column as default Y
+        const firstNumCol = headers.find(h => 
+          appState.rows.some(r => typeof r[h] === 'number')
+        );
+        appState.yCol = firstNumCol || headers[1] || headers[0];
+        appState.datasetName = customName ? customName.replace(/\.[^/.]+$/, "") : 'Imported JSON';
+        appState.currentTitle = `${appState.yCol} Trend`;
+
+        // Update UI
+        if (typeof syncAxisSelectors === 'function') syncAxisSelectors();
+        if (typeof renderDataTable === 'function') renderDataTable();
+        if (typeof initChart === 'function') initChart();
+        if (typeof updateInsightsAndSummary === 'function') updateInsightsAndSummary();
+        if (typeof closeSheet === 'function') closeSheet('csvSheet');
+        if (typeof showSnackbar === 'function') {
+          showSnackbar(`Imported ${appState.rows.length} JSON records`);
+        }
+      } catch (err) {
+        if (typeof showSnackbar === 'function') {
+          showSnackbar('Invalid JSON format. Expected array of objects');
+        } else {
+          alert('Invalid JSON format. Expected array of objects');
+        }
+      }
+    }
+
+    /** Main CSV Processor */
     function processCsvInput() {
-      const text = document.getElementById('rawCsvText').value.trim();
+      const textarea = document.getElementById('rawCsvText');
+      const text = textarea ? textarea.value.trim() : '';
+
       if (!text) {
-        showSnackbar('Please paste valid CSV contents');
+        if (typeof showSnackbar === 'function') {
+          showSnackbar('Please paste valid CSV contents');
+        } else {
+          alert('Please paste valid CSV contents');
+        }
         return;
       }
 
-      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      // Check if user accidentally pasted raw JSON instead of CSV
+      if (text.startsWith('[') || text.startsWith('{')) {
+        processJsonInput(text, 'Imported Data');
+        return;
+      }
+
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
       if (lines.length < 2) {
-        showSnackbar('CSV needs a header row and at least 1 record');
+        if (typeof showSnackbar === 'function') {
+          showSnackbar('CSV needs a header row and at least 1 record');
+        } else {
+          alert('CSV needs a header row and at least 1 record');
+        }
         return;
       }
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
+      // Parse headers
+      const headers = splitCsvLine(lines[0]);
       const parsedRows = [];
 
       for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim().replace(/^["']|["']$/g, ''));
+        const values = splitCsvLine(lines[i]);
         const obj = {};
         headers.forEach((h, idx) => {
           const val = values[idx];
-          if (!isNaN(val) && val !== '') {
+          if (val !== undefined && !isNaN(val) && val !== '') {
             obj[h] = parseFloat(val);
           } else {
-            obj[h] = val || '';
+            obj[h] = val !== undefined ? val : '';
           }
         });
         parsedRows.push(obj);
       }
 
+      // Assign to global appState
       appState.columns = headers;
       appState.rows = parsedRows;
       appState.xCol = headers[0];
-      appState.yCol = headers[1] || headers[0];
+
+      // Auto-detect best Y-axis (first column containing numbers)
+      const numericCol = headers.find(h => 
+        parsedRows.some(row => typeof row[h] === 'number')
+      );
+      appState.yCol = numericCol || headers[1] || headers[0];
+
       appState.datasetName = 'Imported Custom CSV';
       appState.currentTitle = `${appState.yCol} Trend`;
 
-      syncAxisSelectors();
-      renderDataTable();
-      initChart();
-      updateInsightsAndSummary();
-      closeSheet('csvSheet');
-      showSnackbar(`Imported ${parsedRows.length} rows`);
+      // Update all application bindings
+      if (typeof syncAxisSelectors === 'function') syncAxisSelectors();
+      if (typeof renderDataTable === 'function') renderDataTable();
+      if (typeof initChart === 'function') initChart();
+      if (typeof updateInsightsAndSummary === 'function') updateInsightsAndSummary();
+      if (typeof closeSheet === 'function') closeSheet('csvSheet');
+      
+      if (typeof showSnackbar === 'function') {
+        showSnackbar(`Imported ${parsedRows.length} rows`);
+      }
     }
 
     /* =====================================================================
