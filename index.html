@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DataCraft - Android Chart Studio</title>
+  
+  <!-- Material 3 & Modern Styling Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome 6 for Android Material & UI Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6750a4">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('Service Worker Registered'))
+        .catch(err => console.error('SW registration failed:', err));
+    });
+  }
+</script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Roboto Flex', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          },
+          colors: {
+            md: {
+              surface: '#F8F9FA',
+              surfaceDark: '#121316',
+              surfaceContainer: '#F0F3F8',
+              surfaceContainerDark: '#1E1F24',
+              surfaceContainerHigh: '#E8ECF2',
+              surfaceContainerHighDark: '#282A30',
+              primary: '#0B57D0',
+              primaryContainer: '#D3E3FD',
+              onPrimaryContainer: '#041E49',
+              secondary: '#444746',
+              secondaryContainer: '#E3E2E6',
+              tertiary: '#00639B',
+              outline: '#74777F',
+              outlineVariant: '#C4C7C5'
+            }
+          },
+          borderRadius: {
+            '4xl': '28px',
+            '5xl': '36px'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Android Material Touch & Scrollbar Styles */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    input, textarea, select {
+      user-select: text;
+    }
+    /* Hide scrollbars for clean native Android experience */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Ripple / Touch response */
+    .touch-ripple {
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.1s ease, background-color 0.2s ease;
+    }
+    .touch-ripple:active {
+      transform: scale(0.97);
+    }
+
+    /* Bottom Sheet Animation */
+    .bottom-sheet {
+      transition: transform 0.28s cubic-bezier(0.2, 0.0, 0, 1.0);
+    }
+    .bottom-sheet.closed {
+      transform: translateY(100%);
+    }
+
+    /* Android frame simulation on desktop */
+    @media (min-width: 640px) {
+      .android-shell-container {
+        max-width: 440px;
+        max-height: 880px;
+        height: 94vh;
+        border-radius: 44px;
+        box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.35), 0 0 0 10px #22252a;
+        margin: auto;
+        overflow: hidden;
+        border: 2px solid rgba(255, 255, 255, 0.08);
+      }
+      .android-camera-cutout {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-800 antialiased h-screen flex flex-col justify-center items-center p-0 sm:p-4 overflow-hidden font-sans">
+
+  <!-- Main Mobile App Shell -->
+  <div class="android-shell-container w-full h-full bg-[#FBFDF9] flex flex-col relative overflow-hidden text-[#1A1C1E]">
+    
+    <!-- Android Status Bar -->
+    <div class="w-full bg-inherit pt-3 px-6 pb-1 flex justify-between items-center text-xs font-semibold z-30 select-none">
+      <div id="statusTime" class="tracking-tight text-slate-800 font-medium">9:41</div>
+      <!-- Front Camera Pill (Punch hole) -->
+      <div class="android-camera-cutout hidden w-4 h-4 rounded-full bg-black mx-auto"></div>
+      <div class="flex items-center space-x-2 text-[11px] text-slate-700">
+        <i class="fa-solid fa-signal"></i>
+        <i class="fa-solid fa-wifi"></i>
+        <i class="fa-solid fa-battery-full text-sm"></i>
+      </div>
+    </div>
+
+    <!-- Android Material 3 Top App Bar -->
+    <header class="px-5 py-2.5 flex items-center justify-between z-20 bg-inherit border-b border-slate-100/80">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+          <i class="fa-solid fa-chart-pie text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-1.5">
+            DataCraft
+            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">M3</span>
+          </h1>
+          <p id="currentDatasetBadge" class="text-xs text-slate-500 font-medium truncate max-w-[170px]">Monthly Sales & Revenue</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-1">
+        <button id="quickSampleBtn" class="touch-ripple w-9 h-9 rounded-full hover:bg-slate-100 text-slate-600 flex items-center justify-center text-sm" title="Switch Dataset">
+          <i class="fa-solid fa-layer-group"></i>
+        </button>
+        <button id="exportModalBtn" class="touch-ripple w-9 h-9 rounded-full hover:bg-slate-100 text-slate-600 flex items-center justify-center text-sm" title="Share & Export">
+          <i class="fa-solid fa-share-nodes"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Scrollable Screen Content Container -->
+    <main class="flex-1 overflow-y-auto no-scrollbar relative pb-24" id="mainScrollArea">
+
+      <!-- ================= SECTION 1: CHART STUDIO (DEFAULT HOME) ================= -->
+      <div id="tab-studio" class="page-view px-4 py-3 space-y-4">
+        
+        <!-- Interactive Chart Preview Card -->
+        <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-100 relative">
+          <div class="flex justify-between items-center mb-3">
+            <div>
+              <span class="text-[11px] font-semibold tracking-wider uppercase text-blue-600">Visualizer</span>
+              <h2 id="chartTitleDisplay" class="text-base font-bold text-slate-900 leading-tight">Monthly Sales Performance</h2>
+            </div>
+            <!-- Quick Chart Type Switcher Pills -->
+            <div class="flex bg-slate-100 p-0.5 rounded-xl">
+              <button onclick="setChartType('bar')" class="chart-type-pill px-2.5 py-1 text-xs rounded-lg font-medium transition-all text-slate-600 hover:text-slate-900" data-type="bar" title="Bar">
+                <i class="fa-solid fa-chart-simple"></i>
+              </button>
+              <button onclick="setChartType('line')" class="chart-type-pill px-2.5 py-1 text-xs rounded-lg font-medium transition-all text-slate-600 hover:text-slate-900" data-type="line" title="Line">
+                <i class="fa-solid fa-chart-line"></i>
+              </button>
+              <button onclick="setChartType('doughnut')" class="chart-type-pill px-2.5 py-1 text-xs rounded-lg font-medium transition-all text-slate-600 hover:text-slate-900" data-type="doughnut" title="Doughnut">
+                <i class="fa-solid fa-chart-pie"></i>
+              </button>
+              <button onclick="setChartType('radar')" class="chart-type-pill px-2.5 py-1 text-xs rounded-lg font-medium transition-all text-slate-600 hover:text-slate-900" data-type="radar" title="Radar">
+                <i class="fa-solid fa-hexagon-nodes"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Chart Canvas Container -->
+          <div class="relative w-full h-64 flex items-center justify-center">
+            <canvas id="activeChartCanvas" class="w-full h-full"></canvas>
+          </div>
+
+          <!-- Chart Controls Bar -->
+          <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <div class="flex items-center space-x-2">
+              <span id="currentTypeLabel" class="capitalize font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">Bar Chart</span>
+              <span id="dataPointsCount" class="text-slate-400">6 data points</span>
+            </div>
+            <button onclick="openChartCustomizer()" class="touch-ripple text-blue-600 font-semibold flex items-center gap-1 hover:underline">
+              <i class="fa-solid fa-sliders text-[11px]"></i> Customize
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Summary Stats (M3 Cards) -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <div class="bg-blue-50/70 border border-blue-100/60 p-3 rounded-2xl">
+            <span class="text-[11px] font-medium text-blue-600 flex items-center gap-1">
+              <i class="fa-solid fa-calculator"></i> Total Value
+            </span>
+            <div id="statTotal" class="text-lg font-bold text-slate-900 mt-0.5">$0</div>
+            <div id="statSeriesName" class="text-[10px] text-slate-500 truncate">Series Sum</div>
+          </div>
+
+          <div class="bg-indigo-50/70 border border-indigo-100/60 p-3 rounded-2xl">
+            <span class="text-[11px] font-medium text-indigo-600 flex items-center gap-1">
+              <i class="fa-solid fa-chart-line"></i> Average (Mean)
+            </span>
+            <div id="statAverage" class="text-lg font-bold text-slate-900 mt-0.5">0</div>
+            <div class="text-[10px] text-slate-500">Per category</div>
+          </div>
+
+          <div class="bg-emerald-50/70 border border-emerald-100/60 p-3 rounded-2xl">
+            <span class="text-[11px] font-medium text-emerald-600 flex items-center gap-1">
+              <i class="fa-solid fa-arrow-trend-up"></i> Top Performer
+            </span>
+            <div id="statMax" class="text-base font-bold text-slate-900 mt-0.5 truncate">-</div>
+            <div id="statMaxValue" class="text-[10px] text-slate-500 truncate">0 units</div>
+          </div>
+
+          <div class="bg-amber-50/70 border border-amber-100/60 p-3 rounded-2xl">
+            <span class="text-[11px] font-medium text-amber-600 flex items-center gap-1">
+              <i class="fa-solid fa-arrow-trend-down"></i> Minimum
+            </span>
+            <div id="statMin" class="text-base font-bold text-slate-900 mt-0.5 truncate">-</div>
+            <div id="statMinValue" class="text-[10px] text-slate-500 truncate">0 units</div>
+          </div>
+        </div>
+
+        <!-- Active Data Series Selector Pills -->
+        <div class="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-semibold text-slate-700">Plotted Metric (Y-Axis):</span>
+            <button onclick="switchTab('tab-editor')" class="text-blue-600 font-medium text-[11px] hover:underline flex items-center gap-1">
+              <i class="fa-solid fa-pen-to-square"></i> Edit Table
+            </button>
+          </div>
+          <div id="ySeriesPicker" class="flex flex-wrap gap-2">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Palette Quick Switcher -->
+        <div class="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm">
+          <div class="flex justify-between items-center mb-2">
+            <label class="text-xs font-semibold text-slate-700">Theme Palette</label>
+            <span id="activePaletteName" class="text-[11px] text-blue-600 font-medium">Material You</span>
+          </div>
+          <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar py-1" id="paletteList">
+            <!-- Palette Buttons dynamically filled -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= SECTION 2: DATA EDITOR ================= -->
+      <div id="tab-editor" class="page-view px-4 py-3 space-y-4 hidden">
+        
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">Data Management</h2>
+            <p class="text-xs text-slate-500">Edit rows, add columns or import raw CSV</p>
+          </div>
+          <div class="flex space-x-2">
+            <button onclick="openCsvModal()" class="touch-ripple text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1">
+              <i class="fa-solid fa-file-csv text-blue-600"></i> Paste CSV
+            </button>
+            <button onclick="openAddRowModal()" class="touch-ripple text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 shadow-sm">
+              <i class="fa-solid fa-plus"></i> Add Row
+            </button>
+          </div>
+        </div>
+
+        <!-- Axis Mapping Control -->
+        <div class="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-sm space-y-2">
+          <span class="text-xs font-bold text-slate-800 tracking-wide uppercase">Axis Mapping</span>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <label class="block text-slate-500 mb-1">X-Axis (Category Label)</label>
+              <select id="xAxisSelect" onchange="handleAxisChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-800 focus:outline-blue-500">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+            <div>
+              <label class="block text-slate-500 mb-1">Primary Value (Series)</label>
+              <select id="yAxisSelect" onchange="handleAxisChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-800 focus:outline-blue-500">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Editable Table Card -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
+          <div class="px-4 py-2.5 bg-slate-50/90 border-b border-slate-200/70 flex justify-between items-center">
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider" id="tableRowsCount">6 Entries</span>
+            <button onclick="clearCurrentDataset()" class="text-xs text-rose-600 font-medium hover:underline flex items-center gap-1">
+              <i class="fa-regular fa-trash-can"></i> Clear Table
+            </button>
+          </div>
+          
+          <div class="overflow-x-auto max-h-72">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-slate-50 border-b border-slate-200 text-slate-600">
+                <tr id="tableHeaderRow">
+                  <!-- Generated by JS -->
+                </tr>
+              </thead>
+              <tbody id="tableBody" class="divide-y divide-slate-100">
+                <!-- Generated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Action Bar: Add new column -->
+        <div class="bg-blue-50/60 rounded-2xl p-3 border border-blue-100 flex items-center justify-between">
+          <div class="flex items-center space-x-2 text-xs text-blue-900">
+            <i class="fa-solid fa-table-columns text-blue-600"></i>
+            <span>Add numerical column to compare metrics</span>
+          </div>
+          <button onclick="promptNewColumn()" class="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-medium text-xs hover:bg-blue-700 shadow-sm">
+            + Column
+          </button>
+        </div>
+
+      </div>
+
+      <!-- ================= SECTION 3: TEMPLATES ================= -->
+      <div id="tab-templates" class="page-view px-4 py-3 space-y-4 hidden">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900">Ready-made Datasets</h2>
+          <p class="text-xs text-slate-500">Pick any real-world template to load instant visualizations</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3" id="templateListCards">
+          <!-- Populated in JS -->
+        </div>
+      </div>
+
+      <!-- ================= SECTION 4: EXPORT & INSIGHTS ================= -->
+      <div id="tab-export" class="page-view px-4 py-3 space-y-4 hidden">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900">Export & Report</h2>
+          <p class="text-xs text-slate-500">Download high-res visualizations or copy formatted data</p>
+        </div>
+
+        <!-- Visual Preview Card -->
+        <div class="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-500">Image Render Preview</span>
+            <span class="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">HQ 2x PNG</span>
+          </div>
+          <div class="bg-slate-50 rounded-2xl p-2 border border-dashed border-slate-200 flex items-center justify-center min-h-[140px]">
+            <img id="exportPreviewImage" class="max-h-36 rounded-lg object-contain shadow-sm" alt="Chart Preview" />
+          </div>
+          
+          <button onclick="downloadChartPng()" class="touch-ripple w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/25">
+            <i class="fa-solid fa-file-arrow-down text-base"></i> Download PNG Chart
+          </button>
+        </div>
+
+        <!-- Export Options Card -->
+        <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-sm space-y-2">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Data Sharing</h3>
+
+          <button onclick="copyCsvToClipboard()" class="w-full py-2.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-medium flex items-center justify-between">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-file-csv text-blue-600 text-sm"></i> Copy Formatted CSV
+            </span>
+            <i class="fa-regular fa-copy text-slate-400"></i>
+          </button>
+
+          <button onclick="copySummaryText()" class="w-full py-2.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-medium flex items-center justify-between">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-quote-left text-indigo-600 text-sm"></i> Copy Text Summary & Insights
+            </span>
+            <i class="fa-regular fa-clipboard text-slate-400"></i>
+          </button>
+
+          <button onclick="downloadJsonDataset()" class="w-full py-2.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-medium flex items-center justify-between">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-code text-amber-600 text-sm"></i> Export as JSON Backup
+            </span>
+            <i class="fa-solid fa-download text-slate-400"></i>
+          </button>
+        </div>
+
+        <!-- Insights Generation Box -->
+        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-3xl p-4 space-y-2">
+          <div class="flex items-center space-x-2 text-blue-800 font-bold text-xs">
+            <i class="fa-solid fa-brain"></i>
+            <span>Smart Executive Digest</span>
+          </div>
+          <div id="smartDigestContent" class="text-xs text-slate-700 space-y-1.5 leading-relaxed">
+            <!-- Dynamic textual analysis -->
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Floating Action Button (FAB) - Quick Add Point (Studio/Data view) -->
+    <button id="mainFab" onclick="openAddRowModal()" class="touch-ripple absolute right-5 bottom-20 z-20 w-14 h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-600/35 transition-all">
+      <i class="fa-solid fa-plus text-xl"></i>
+    </button>
+
+    <!-- Android Material 3 Navigation Bar -->
+    <nav class="absolute bottom-0 left-0 right-0 h-16 bg-[#F0F4F9] border-t border-slate-200/70 z-30 flex items-center justify-around px-2 pb-1">
+      
+      <button onclick="switchTab('tab-studio')" class="nav-item active flex flex-col items-center justify-center flex-1 py-1" data-target="tab-studio">
+        <div class="nav-indicator w-14 h-8 rounded-full flex items-center justify-center transition-colors">
+          <i class="fa-solid fa-chart-column text-base"></i>
+        </div>
+        <span class="text-[11px] font-medium tracking-tight mt-0.5">Studio</span>
+      </button>
+
+      <button onclick="switchTab('tab-editor')" class="nav-item flex flex-col items-center justify-center flex-1 py-1 text-slate-600" data-target="tab-editor">
+        <div class="nav-indicator w-14 h-8 rounded-full flex items-center justify-center transition-colors">
+          <i class="fa-solid fa-table text-base"></i>
+        </div>
+        <span class="text-[11px] font-medium tracking-tight mt-0.5">Data</span>
+      </button>
+
+      <button onclick="switchTab('tab-templates')" class="nav-item flex flex-col items-center justify-center flex-1 py-1 text-slate-600" data-target="tab-templates">
+        <div class="nav-indicator w-14 h-8 rounded-full flex items-center justify-center transition-colors">
+          <i class="fa-solid fa-shapes text-base"></i>
+        </div>
+        <span class="text-[11px] font-medium tracking-tight mt-0.5">Templates</span>
+      </button>
+
+      <button onclick="switchTab('tab-export')" class="nav-item flex flex-col items-center justify-center flex-1 py-1 text-slate-600" data-target="tab-export">
+        <div class="nav-indicator w-14 h-8 rounded-full flex items-center justify-center transition-colors">
+          <i class="fa-solid fa-paper-plane text-base"></i>
+        </div>
+        <span class="text-[11px] font-medium tracking-tight mt-0.5">Export</span>
+      </button>
+
+    </nav>
+
+    <!-- Android Home Indicator Pill -->
+    <div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-900/40 rounded-full z-40 pointer-events-none"></div>
+
+    <!-- ================= BOTTOM SHEET 1: CHART CUSTOMIZER ================= -->
+    <div id="customizerSheet" class="bottom-sheet closed absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex flex-col justify-end">
+      <div class="bg-white rounded-t-[32px] p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto no-scrollbar">
+        <!-- Drag Handle -->
+        <div class="w-10 h-1.5 bg-slate-300 rounded-full mx-auto -mt-1 mb-2"></div>
+        
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 class="text-base font-bold text-slate-900">Customize Presentation</h3>
+          <button onclick="closeSheet('customizerSheet')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="space-y-3.5 text-xs">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Chart Headline</label>
+            <input type="text" id="inputChartTitle" oninput="updateChartTitle(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 focus:outline-blue-600">
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="font-semibold text-slate-700 block mb-1">Display Type</label>
+              <select id="sheetChartTypeSelect" onchange="setChartType(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800">
+                <option value="bar">Bar Chart</option>
+                <option value="line">Line Chart</option>
+                <option value="pie">Pie Chart</option>
+                <option value="doughnut">Doughnut</option>
+                <option value="radar">Radar</option>
+                <option value="polarArea">Polar Area</option>
+              </select>
+            </div>
+            <div>
+              <label class="font-semibold text-slate-700 block mb-1">Corner Curvature</label>
+              <select id="barCurvatureSelect" onchange="toggleCurvature(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800">
+                <option value="6">Rounded (M3)</option>
+                <option value="0">Sharp Flat</option>
+                <option value="16">Pill Max</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Toggles Grid -->
+          <div class="space-y-2 pt-1">
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <span class="font-medium text-slate-800">Show Grid Lines</span>
+              <input type="checkbox" id="toggleGridlines" onchange="toggleGrid(this.checked)" checked class="w-4 h-4 text-blue-600 rounded">
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <span class="font-medium text-slate-800">Show Legend</span>
+              <input type="checkbox" id="toggleLegend" onchange="toggleLegendDisplay(this.checked)" checked class="w-4 h-4 text-blue-600 rounded">
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <span class="font-medium text-slate-800">Smooth Spline Curve (Lines)</span>
+              <input type="checkbox" id="toggleSpline" onchange="toggleSplineCurve(this.checked)" checked class="w-4 h-4 text-blue-600 rounded">
+            </label>
+          </div>
+
+          <button onclick="closeSheet('customizerSheet')" class="w-full py-3 bg-blue-600 text-white rounded-2xl font-semibold mt-2 shadow-sm">
+            Apply & View
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= BOTTOM SHEET 2: ADD ROW ================= -->
+    <div id="addRowSheet" class="bottom-sheet closed absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex flex-col justify-end">
+      <div class="bg-white rounded-t-[32px] p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto no-scrollbar">
+        <div class="w-10 h-1.5 bg-slate-300 rounded-full mx-auto -mt-1 mb-2"></div>
+        
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 class="text-base font-bold text-slate-900" id="rowModalTitle">Add Data Entry</h3>
+          <button onclick="closeSheet('addRowSheet')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <form id="addRowForm" onsubmit="handleSaveRow(event)" class="space-y-3 text-xs">
+          <div id="dynamicInputFields" class="space-y-2.5">
+            <!-- Dynamic input rows for all active columns -->
+          </div>
+
+          <div class="pt-2 flex gap-2">
+            <button type="button" onclick="closeSheet('addRowSheet')" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-semibold">
+              Cancel
+            </button>
+            <button type="submit" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-semibold shadow-md">
+              Save Entry
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ================= BOTTOM SHEET 3: PASTE CSV ================= -->
+    <div id="csvSheet" class="bottom-sheet closed absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex flex-col justify-end">
+      <div class="bg-white rounded-t-[32px] p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
+        <div class="w-10 h-1.5 bg-slate-300 rounded-full mx-auto -mt-1 mb-2"></div>
+        
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Import CSV / Delimited Text</h3>
+            <p class="text-[11px] text-slate-500">First line must contain headers</p>
+          </div>
+          <button onclick="closeSheet('csvSheet')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <textarea id="rawCsvText" rows="6" placeholder="Month,Sales,Expenses&#10;Jan,1200,900&#10;Feb,1500,1100&#10;Mar,1800,1250" class="w-full font-mono bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-800 focus:outline-blue-600 text-[11px]"></textarea>
+          
+          <div class="flex gap-2">
+            <button onclick="loadSampleCsvText()" class="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-medium">
+              Load Example
+            </button>
+            <button onclick="processCsvInput()" class="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md">
+              Parse & Overwrite Dataset
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Android In-App Snackbar Alert Message -->
+    <div id="androidSnackbar" class="fixed bottom-20 left-6 right-6 mx-auto max-w-xs z-50 bg-[#2D3033] text-white px-4 py-3 rounded-2xl shadow-xl flex items-center justify-between transition-all transform translate-y-32 opacity-0 duration-300 pointer-events-none">
+      <span id="snackbarMessage" class="text-xs font-medium">Action completed</span>
+      <i class="fa-solid fa-circle-check text-blue-400 text-sm"></i>
+    </div>
+
+  </div>
+
+  <script>
+    /* =====================================================================
+       DATACRAFT APP CORE ENGINE & STATE
+       ===================================================================== */
+
+    // 1. Color Palettes (Material You and Modern Themes)
+    const COLOR_PALETTES = {
+      materialYou: {
+        name: 'Material You',
+        colors: ['#0B57D0', '#7C5800', '#006B58', '#984061', '#4A6267', '#6750A4', '#8C4F27'],
+        bgColors: ['rgba(11, 87, 208, 0.75)', 'rgba(124, 88, 0, 0.75)', 'rgba(0, 107, 88, 0.75)', 'rgba(152, 64, 97, 0.75)', 'rgba(74, 98, 103, 0.75)', 'rgba(103, 80, 164, 0.75)']
+      },
+      vibrant: {
+        name: 'Vibrant Neon',
+        colors: ['#3B82F6', '#EC4899', '#8B5CF6', '#10B981', '#F59E0B', '#06B6D4'],
+        bgColors: ['rgba(59, 130, 246, 0.8)', 'rgba(236, 72, 153, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(16, 185, 129, 0.8)', 'rgba(245, 158, 11, 0.8)', 'rgba(6, 182, 212, 0.8)']
+      },
+      sunset: {
+        name: 'Warm Sunset',
+        colors: ['#FF5722', '#FF9800', '#FFC107', '#E91E63', '#9C27B0', '#673AB7'],
+        bgColors: ['rgba(255, 87, 34, 0.8)', 'rgba(255, 152, 0, 0.8)', 'rgba(255, 193, 7, 0.8)', 'rgba(233, 30, 99, 0.8)', 'rgba(156, 39, 176, 0.8)']
+      },
+      emerald: {
+        name: 'Forest Mint',
+        colors: ['#059669', '#10B981', '#34D399', '#0284C7', '#0D9488', '#14B8A6'],
+        bgColors: ['rgba(5, 150, 105, 0.8)', 'rgba(16, 185, 129, 0.8)', 'rgba(52, 211, 153, 0.8)', 'rgba(2, 132, 199, 0.8)', 'rgba(13, 148, 136, 0.8)']
+      },
+      pastel: {
+        name: 'Soft Pastel',
+        colors: ['#93C5FD', '#FCA5A5', '#FDE68A', '#A7F3D0', '#DDD6FE', '#FBCFE8'],
+        bgColors: ['rgba(147, 197, 253, 0.85)', 'rgba(252, 165, 165, 0.85)', 'rgba(253, 230, 138, 0.85)', 'rgba(167, 243, 208, 0.85)', 'rgba(221, 214, 254, 0.85)']
+      }
+    };
+
+    // 2. Preloaded Datasets
+    const PRELOADED_DATASETS = [
+      {
+        id: 'sales_rev',
+        name: 'Monthly Sales & Revenue',
+        icon: 'fa-chart-line',
+        xCol: 'Month',
+        defaultYCol: 'Revenue ($)',
+        columns: ['Month', 'Revenue ($)', 'Expenses ($)', 'Units Sold'],
+        rows: [
+          { 'Month': 'Jan', 'Revenue ($)': 12500, 'Expenses ($)': 8200, 'Units Sold': 340 },
+          { 'Month': 'Feb', 'Revenue ($)': 16800, 'Expenses ($)': 9100, 'Units Sold': 420 },
+          { 'Month': 'Mar', 'Revenue ($)': 19400, 'Expenses ($)': 11200, 'Units Sold': 510 },
+          { 'Month': 'Apr', 'Revenue ($)': 24200, 'Expenses ($)': 12800, 'Units Sold': 630 },
+          { 'Month': 'May', 'Revenue ($)': 22100, 'Expenses ($)': 11900, 'Units Sold': 580 },
+          { 'Month': 'Jun', 'Revenue ($)': 28900, 'Expenses ($)': 14300, 'Units Sold': 740 }
+        ]
+      },
+      {
+        id: 'fitness_tracker',
+        name: 'Fitness & Commute Tracker',
+        icon: 'fa-person-running',
+        xCol: 'Day',
+        defaultYCol: 'Distance (km)',
+        columns: ['Day', 'Distance (km)', 'Calories', 'Heart Rate (bpm)'],
+        rows: [
+          { 'Day': 'Mon', 'Distance (km)': 5.2, 'Calories': 380, 'Heart Rate (bpm)': 138 },
+          { 'Day': 'Tue', 'Distance (km)': 7.5, 'Calories': 520, 'Heart Rate (bpm)': 145 },
+          { 'Day': 'Wed', 'Distance (km)': 3.8, 'Calories': 270, 'Heart Rate (bpm)': 128 },
+          { 'Day': 'Thu', 'Distance (km)': 8.4, 'Calories': 610, 'Heart Rate (bpm)': 152 },
+          { 'Day': 'Fri', 'Distance (km)': 6.0, 'Calories': 430, 'Heart Rate (bpm)': 139 },
+          { 'Day': 'Sat', 'Distance (km)': 12.1, 'Calories': 890, 'Heart Rate (bpm)': 158 },
+          { 'Day': 'Sun', 'Distance (km)': 4.2, 'Calories': 310, 'Heart Rate (bpm)': 125 }
+        ]
+      },
+      {
+        id: 'milestones',
+        name: 'Project Milestones',
+        icon: 'fa-list-check',
+        xCol: 'Task',
+        defaultYCol: 'Progress (%)',
+        columns: ['Task', 'Progress (%)', 'Hours Spent', 'Team Size'],
+        rows: [
+          { 'Task': 'Design & UX', 'Progress (%)': 100, 'Hours Spent': 48, 'Team Size': 3 },
+          { 'Task': 'API Engine', 'Progress (%)': 85, 'Hours Spent': 64, 'Team Size': 4 },
+          { 'Task': 'Frontend UI', 'Progress (%)': 75, 'Hours Spent': 56, 'Team Size': 3 },
+          { 'Task': 'Integration', 'Progress (%)': 45, 'Hours Spent': 30, 'Team Size': 2 },
+          { 'Task': 'QA Testing', 'Progress (%)': 20, 'Hours Spent': 18, 'Team Size': 2 }
+        ]
+      },
+      {
+        id: 'survey_poll',
+        name: 'Student Survey & Poll',
+        icon: 'fa-square-poll-vertical',
+        xCol: 'Subject',
+        defaultYCol: 'Votes',
+        columns: ['Subject', 'Votes', 'Satisfaction (%)'],
+        rows: [
+          { 'Subject': 'Computer Science', 'Votes': 420, 'Satisfaction (%)': 92 },
+          { 'Subject': 'Robotics', 'Votes': 380, 'Satisfaction (%)': 88 },
+          { 'Subject': 'Design Tech', 'Votes': 290, 'Satisfaction (%)': 85 },
+          { 'Subject': 'Data Science', 'Votes': 350, 'Satisfaction (%)': 90 },
+          { 'Subject': 'Economics', 'Votes': 180, 'Satisfaction (%)': 76 }
+        ]
+      }
+    ];
+
+    // Current Application State
+    let appState = {
+      currentTitle: 'Monthly Sales Performance',
+      datasetName: 'Monthly Sales & Revenue',
+      columns: ['Month', 'Revenue ($)', 'Expenses ($)', 'Units Sold'],
+      rows: JSON.parse(JSON.stringify(PRELOADED_DATASETS[0].rows)),
+      xCol: 'Month',
+      yCol: 'Revenue ($)',
+      chartType: 'bar',
+      paletteKey: 'materialYou',
+      gridLines: true,
+      showLegend: true,
+      smoothSpline: true,
+      borderRadius: 8,
+      editingRowIndex: null
+    };
+
+    let chartInstance = null;
+
+    // Initialize App On Load
+    window.onload = function() {
+      updateRealTimeClock();
+      setInterval(updateRealTimeClock, 30000);
+      renderPaletteSelectors();
+      renderTemplateCards();
+      syncAxisSelectors();
+      renderDataTable();
+      initChart();
+      updateInsightsAndSummary();
+
+      // Setup quick header shortcuts
+      document.getElementById('quickSampleBtn').addEventListener('click', () => switchTab('tab-templates'));
+      document.getElementById('exportModalBtn').addEventListener('click', () => switchTab('tab-export'));
+    };
+
+    function updateRealTimeClock() {
+      const now = new Date();
+      let hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      document.getElementById('statusTime').innerText = `${hours}:${minutes}`;
+    }
+
+    /* =====================================================================
+       CHART RENDERING (CHART.JS INTEGRATION)
+       ===================================================================== */
+
+    function initChart() {
+      const ctx = document.getElementById('activeChartCanvas').getContext('2d');
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      const labels = appState.rows.map(r => r[appState.xCol] ?? '');
+      const dataValues = appState.rows.map(r => Number(r[appState.yCol]) || 0);
+
+      const palette = COLOR_PALETTES[appState.paletteKey];
+      const isMultiColorType = ['pie', 'doughnut', 'polarArea'].includes(appState.chartType);
+
+      // Generate colors for each dataset element
+      let bgColorsList = [];
+      let borderColorsList = [];
+
+      if (isMultiColorType) {
+        bgColorsList = labels.map((_, i) => palette.bgColors[i % palette.bgColors.length]);
+        borderColorsList = labels.map((_, i) => palette.colors[i % palette.colors.length]);
+      } else {
+        bgColorsList = appState.chartType === 'line' 
+          ? palette.bgColors[0].replace('0.75', '0.2').replace('0.8', '0.2') 
+          : palette.colors[0];
+        borderColorsList = palette.colors[0];
+      }
+
+      const datasetConfig = {
+        label: appState.yCol,
+        data: dataValues,
+        backgroundColor: bgColorsList,
+        borderColor: borderColorsList,
+        borderWidth: appState.chartType === 'line' ? 3 : 1.5,
+        borderRadius: appState.chartType === 'bar' ? appState.borderRadius : 0,
+        fill: appState.chartType === 'line',
+        tension: appState.smoothSpline ? 0.4 : 0,
+        pointBackgroundColor: palette.colors[0],
+        pointRadius: appState.chartType === 'line' ? 5 : 3,
+        pointHoverRadius: 7
+      };
+
+      const chartConfig = {
+        type: appState.chartType,
+        data: {
+          labels: labels,
+          datasets: [datasetConfig]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 650,
+            easing: 'easeOutQuart'
+          },
+          plugins: {
+            legend: {
+              display: appState.showLegend,
+              position: 'top',
+              labels: {
+                boxWidth: 12,
+                font: { family: 'Roboto Flex', size: 11, weight: '500' },
+                color: '#475569'
+              }
+            },
+            tooltip: {
+              backgroundColor: '#1E293B',
+              titleFont: { family: 'Roboto Flex', size: 12, weight: '700' },
+              bodyFont: { family: 'Roboto Flex', size: 12 },
+              padding: 10,
+              cornerRadius: 10,
+              displayColors: isMultiColorType
+            }
+          },
+          scales: isMultiColorType || appState.chartType === 'radar' ? undefined : {
+            x: {
+              grid: {
+                display: appState.gridLines,
+                color: '#E2E8F0'
+              },
+              ticks: {
+                font: { family: 'Roboto Flex', size: 11 },
+                color: '#64748B'
+              }
+            },
+            y: {
+              beginAtZero: true,
+              grid: {
+                display: appState.gridLines,
+                color: '#F1F5F9'
+              },
+              ticks: {
+                font: { family: 'Roboto Flex', size: 10 },
+                color: '#64748B'
+              }
+            }
+          }
+        }
+      };
+
+      chartInstance = new Chart(ctx, chartConfig);
+
+      // Update UI displays
+      document.getElementById('chartTitleDisplay').innerText = appState.currentTitle;
+      document.getElementById('inputChartTitle').value = appState.currentTitle;
+      document.getElementById('currentTypeLabel').innerText = `${appState.chartType} Chart`;
+      document.getElementById('dataPointsCount').innerText = `${labels.length} data points`;
+      document.getElementById('currentDatasetBadge').innerText = appState.datasetName;
+
+      // Update Pill selector highlighting
+      document.querySelectorAll('.chart-type-pill').forEach(btn => {
+        if (btn.dataset.type === appState.chartType) {
+          btn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+          btn.classList.remove('text-slate-600');
+        } else {
+          btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+          btn.classList.add('text-slate-600');
+        }
+      });
+
+      // Update Render Export Preview Image
+      setTimeout(() => {
+        try {
+          const exportImg = document.getElementById('exportPreviewImage');
+          if (exportImg && chartInstance) {
+            exportImg.src = chartInstance.toBase64Image();
+          }
+        } catch(e) {}
+      }, 700);
+    }
+
+    function setChartType(type) {
+      appState.chartType = type;
+      document.getElementById('sheetChartTypeSelect').value = type;
+      initChart();
+      showSnackbar(`Switched to ${type.toUpperCase()} view`);
+    }
+
+    function updateChartTitle(val) {
+      appState.currentTitle = val || 'Untitled Chart';
+      document.getElementById('chartTitleDisplay').innerText = appState.currentTitle;
+    }
+
+    function toggleGrid(checked) {
+      appState.gridLines = checked;
+      initChart();
+    }
+
+    function toggleLegendDisplay(checked) {
+      appState.showLegend = checked;
+      initChart();
+    }
+
+    function toggleSplineCurve(checked) {
+      appState.smoothSpline = checked;
+      initChart();
+    }
+
+    function toggleCurvature(val) {
+      appState.borderRadius = parseInt(val, 10);
+      initChart();
+    }
+
+    /* =====================================================================
+       PALETTE & APPEARANCE
+       ===================================================================== */
+
+    function renderPaletteSelectors() {
+      const container = document.getElementById('paletteList');
+      container.innerHTML = '';
+      
+      Object.keys(COLOR_PALETTES).forEach(key => {
+        const item = COLOR_PALETTES[key];
+        const isCurrent = (key === appState.paletteKey);
+        
+        const btn = document.createElement('button');
+        btn.className = `flex-shrink-0 px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all text-xs ${
+          isCurrent ? 'border-blue-600 bg-blue-50/70 font-semibold text-blue-900 shadow-sm' : 'border-slate-200 bg-white text-slate-600'
+        }`;
+        
+        // Multi-color dots
+        const dots = item.colors.slice(0, 3).map(c => `<span class="w-2.5 h-2.5 rounded-full inline-block" style="background:${c}"></span>`).join('');
+        btn.innerHTML = `<div class="flex space-x-0.5">${dots}</div> <span>${item.name}</span>`;
+        btn.onclick = () => selectPalette(key);
+        container.appendChild(btn);
+      });
+    }
+
+    function selectPalette(key) {
+      appState.paletteKey = key;
+      document.getElementById('activePaletteName').innerText = COLOR_PALETTES[key].name;
+      renderPaletteSelectors();
+      initChart();
+      showSnackbar(`Palette: ${COLOR_PALETTES[key].name}`);
+    }
+
+    /* =====================================================================
+       METRICS & INTELLIGENT DIGEST
+       ===================================================================== */
+
+    function updateInsightsAndSummary() {
+      const values = appState.rows.map(r => Number(r[appState.yCol]) || 0);
+      if (values.length === 0) return;
+
+      const total = values.reduce((acc, curr) => acc + curr, 0);
+      const avg = total / values.length;
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+
+      const maxIndex = values.indexOf(max);
+      const minIndex = values.indexOf(min);
+
+      const topCategory = appState.rows[maxIndex]?.[appState.xCol] ?? 'N/A';
+      const lowCategory = appState.rows[minIndex]?.[appState.xCol] ?? 'N/A';
+
+      // Format Numbers
+      const isCurrency = appState.yCol.toLowerCase().includes('$') || appState.yCol.toLowerCase().includes('rev');
+      const prefix = isCurrency ? '$' : '';
+
+      document.getElementById('statTotal').innerText = `${prefix}${total.toLocaleString()}`;
+      document.getElementById('statSeriesName').innerText = `${appState.yCol} Total`;
+      document.getElementById('statAverage').innerText = `${prefix}${avg.toFixed(1)}`;
+      document.getElementById('statMax').innerText = topCategory;
+      document.getElementById('statMaxValue').innerText = `${prefix}${max.toLocaleString()} max`;
+      document.getElementById('statMin').innerText = lowCategory;
+      document.getElementById('statMinValue').innerText = `${prefix}${min.toLocaleString()} min`;
+
+      // Build Smart Executive Digest
+      const digestDiv = document.getElementById('smartDigestContent');
+      const spread = max - min;
+      const ratio = min !== 0 ? (max / min).toFixed(1) : '∞';
+
+      digestDiv.innerHTML = `
+        <p>• The active dataset tracks <strong>${values.length}</strong> items for <em>${appState.yCol}</em>, accumulating <strong>${prefix}${total.toLocaleString()}</strong>.</p>
+        <p>• <strong>${topCategory}</strong> leads with <strong>${prefix}${max.toLocaleString()}</strong> (${((max/total)*100).toFixed(1)}% of total sum).</p>
+        <p>• Lowest record observed at <strong>${lowCategory}</strong> with <strong>${prefix}${min.toLocaleString()}</strong>, indicating a <strong>${ratio}x</strong> spread across categories.</p>
+      `;
+    }
+
+    /* =====================================================================
+       DATA EDITING & TABLE MANAGEMENT
+       ===================================================================== */
+
+    function syncAxisSelectors() {
+      const xSel = document.getElementById('xAxisSelect');
+      const ySel = document.getElementById('yAxisSelect');
+      const picker = document.getElementById('ySeriesPicker');
+
+      xSel.innerHTML = '';
+      ySel.innerHTML = '';
+      picker.innerHTML = '';
+
+      appState.columns.forEach(col => {
+        // Option for X
+        const optX = document.createElement('option');
+        optX.value = col;
+        optX.innerText = col;
+        if (col === appState.xCol) optX.selected = true;
+        xSel.appendChild(optX);
+
+        // Option for Y
+        const optY = document.createElement('option');
+        optY.value = col;
+        optY.innerText = col;
+        if (col === appState.yCol) optY.selected = true;
+        ySel.appendChild(optY);
+
+        // Value series picker pills
+        if (col !== appState.xCol) {
+          const pill = document.createElement('button');
+          const isSelected = (col === appState.yCol);
+          pill.className = `px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            isSelected ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          }`;
+          pill.innerText = col;
+          pill.onclick = () => {
+            appState.yCol = col;
+            syncAxisSelectors();
+            initChart();
+            updateInsightsAndSummary();
+            showSnackbar(`Plotting series: ${col}`);
+          };
+          picker.appendChild(pill);
+        }
+      });
+    }
+
+    function handleAxisChange() {
+      appState.xCol = document.getElementById('xAxisSelect').value;
+      appState.yCol = document.getElementById('yAxisSelect').value;
+      syncAxisSelectors();
+      initChart();
+      updateInsightsAndSummary();
+    }
+
+    function renderDataTable() {
+      const headerRow = document.getElementById('tableHeaderRow');
+      const body = document.getElementById('tableBody');
+      const rowCountEl = document.getElementById('tableRowsCount');
+
+      headerRow.innerHTML = '';
+      body.innerHTML = '';
+      rowCountEl.innerText = `${appState.rows.length} Entries`;
+
+      // Headers
+      appState.columns.forEach(col => {
+        const th = document.createElement('th');
+        th.className = 'py-2.5 px-3 font-semibold text-slate-600 border-b border-slate-200';
+        th.innerHTML = `<span class="flex items-center gap-1">${col} ${col === appState.xCol ? '<span class="text-[9px] bg-blue-100 text-blue-700 px-1 rounded">X</span>' : ''} ${col === appState.yCol ? '<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1 rounded">Y</span>' : ''}</span>`;
+        headerRow.appendChild(th);
+      });
+
+      // Action Header
+      const thAction = document.createElement('th');
+      thAction.className = 'py-2.5 px-3 text-right font-semibold text-slate-600 border-b border-slate-200';
+      thAction.innerText = 'Actions';
+      headerRow.appendChild(thAction);
+
+      // Rows
+      appState.rows.forEach((row, rowIndex) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition-colors';
+
+        appState.columns.forEach(col => {
+          const td = document.createElement('td');
+          td.className = 'py-2.5 px-3 text-slate-700 font-medium whitespace-nowrap';
+          td.innerText = row[col] !== undefined ? row[col] : '-';
+          tr.appendChild(td);
+        });
+
+        // Delete & Edit button
+        const tdAction = document.createElement('td');
+        tdAction.className = 'py-2.5 px-3 text-right whitespace-nowrap space-x-1';
+        tdAction.innerHTML = `
+          <button onclick="editRow(${rowIndex})" class="p-1 rounded text-slate-500 hover:text-blue-600" title="Edit">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <button onclick="deleteRow(${rowIndex})" class="p-1 rounded text-slate-500 hover:text-rose-600" title="Delete">
+            <i class="fa-regular fa-trash-can"></i>
+          </button>
+        `;
+        tr.appendChild(tdAction);
+        body.appendChild(tr);
+      });
+    }
+
+    function openAddRowModal() {
+      appState.editingRowIndex = null;
+      document.getElementById('rowModalTitle').innerText = 'Add Data Entry';
+      buildDynamicFormFields();
+      openSheet('addRowSheet');
+    }
+
+    function editRow(index) {
+      appState.editingRowIndex = index;
+      document.getElementById('rowModalTitle').innerText = 'Edit Data Entry';
+      buildDynamicFormFields(appState.rows[index]);
+      openSheet('addRowSheet');
+    }
+
+    function buildDynamicFormFields(existingData = null) {
+      const container = document.getElementById('dynamicInputFields');
+      container.innerHTML = '';
+
+      appState.columns.forEach(col => {
+        const wrap = document.createElement('div');
+        const isNumeric = col !== appState.xCol;
+
+        wrap.innerHTML = `
+          <label class="block text-slate-700 font-semibold mb-1">${col}</label>
+          <input type="${isNumeric ? 'number' : 'text'}" 
+                 step="any"
+                 name="${col}" 
+                 value="${existingData && existingData[col] !== undefined ? existingData[col] : ''}" 
+                 required 
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-blue-600 font-medium text-xs">
+        `;
+        container.appendChild(wrap);
+      });
+    }
+
+    function handleSaveRow(e) {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+      const newEntry = {};
+
+      appState.columns.forEach(col => {
+        let val = formData.get(col);
+        if (col !== appState.xCol && !isNaN(val) && val !== '') {
+          newEntry[col] = parseFloat(val);
+        } else {
+          newEntry[col] = val;
+        }
+      });
+
+      if (appState.editingRowIndex !== null) {
+        appState.rows[appState.editingRowIndex] = newEntry;
+        showSnackbar('Row updated successfully');
+      } else {
+        appState.rows.push(newEntry);
+        showSnackbar('New entry recorded');
+      }
+
+      closeSheet('addRowSheet');
+      renderDataTable();
+      initChart();
+      updateInsightsAndSummary();
+    }
+
+    function deleteRow(index) {
+      if (appState.rows.length <= 1) {
+        showSnackbar('At least one row is required');
+        return;
+      }
+      appState.rows.splice(index, 1);
+      renderDataTable();
+      initChart();
+      updateInsightsAndSummary();
+      showSnackbar('Row removed');
+    }
+
+    function clearCurrentDataset() {
+      appState.rows = [];
+      renderDataTable();
+      initChart();
+      updateInsightsAndSummary();
+      showSnackbar('All rows cleared');
+    }
+
+    function promptNewColumn() {
+      const colName = prompt('Enter New Column Name (e.g., Target, Margin):');
+      if (colName && colName.trim() !== '') {
+        const cleanName = colName.trim();
+        if (appState.columns.includes(cleanName)) {
+          showSnackbar('Column already exists');
+          return;
+        }
+        appState.columns.push(cleanName);
+        appState.rows.forEach(r => r[cleanName] = 0);
+        syncAxisSelectors();
+        renderDataTable();
+        initChart();
+        showSnackbar(`Added column "${cleanName}"`);
+      }
+    }
+
+    /* =====================================================================
+       CSV IMPORT & PARSING
+       ===================================================================== */
+
+    function openCsvModal() {
+      openSheet('csvSheet');
+    }
+
+    function loadSampleCsvText() {
+      document.getElementById('rawCsvText').value = 
+`Quarter,Revenue ($),Cost ($),Customers
+Q1,45000,28000,120
+Q2,62000,34000,185
+Q3,58000,31000,160
+Q4,89000,42000,260`;
+    }
+
+    function processCsvInput() {
+      const text = document.getElementById('rawCsvText').value.trim();
+      if (!text) {
+        showSnackbar('Please paste valid CSV contents');
+        return;
+      }
+
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length < 2) {
+        showSnackbar('CSV needs a header row and at least 1 record');
+        return;
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
+      const parsedRows = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim().replace(/^["']|["']$/g, ''));
+        const obj = {};
+        headers.forEach((h, idx) => {
+          const val = values[idx];
+          if (!isNaN(val) && val !== '') {
+            obj[h] = parseFloat(val);
+          } else {
+            obj[h] = val || '';
+          }
+        });
+        parsedRows.push(obj);
+      }
+
+      appState.columns = headers;
+      appState.rows = parsedRows;
+      appState.xCol = headers[0];
+      appState.yCol = headers[1] || headers[0];
+      appState.datasetName = 'Imported Custom CSV';
+      appState.currentTitle = `${appState.yCol} Trend`;
+
+      syncAxisSelectors();
+      renderDataTable();
+      initChart();
+      updateInsightsAndSummary();
+      closeSheet('csvSheet');
+      showSnackbar(`Imported ${parsedRows.length} rows`);
+    }
+
+    /* =====================================================================
+       TEMPLATES PICKER
+       ===================================================================== */
+
+    function renderTemplateCards() {
+      const container = document.getElementById('templateListCards');
+      container.innerHTML = '';
+
+      PRELOADED_DATASETS.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'touch-ripple bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm hover:border-blue-300 transition-all cursor-pointer flex items-center justify-between';
+        
+        card.innerHTML = `
+          <div class="flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+              <i class="fa-solid ${item.icon}"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-sm text-slate-900">${item.name}</h4>
+              <p class="text-[11px] text-slate-500">${item.rows.length} records • Columns: ${item.columns.slice(0, 3).join(', ')}</p>
+            </div>
+          </div>
+          <button class="px-3 py-1.5 rounded-full bg-slate-100 font-semibold text-xs text-blue-600 hover:bg-blue-600 hover:text-white transition-colors">
+            Load
+          </button>
+        `;
+
+        card.onclick = () => loadTemplate(item);
+        container.appendChild(card);
+      });
+    }
+
+    function loadTemplate(template) {
+      appState.datasetName = template.name;
+      appState.currentTitle = template.name;
+      appState.columns = [...template.columns];
+      appState.rows = JSON.parse(JSON.stringify(template.rows));
+      appState.xCol = template.xCol;
+      appState.yCol = template.defaultYCol;
+
+      syncAxisSelectors();
+      renderDataTable();
+      initChart();
+      updateInsightsAndSummary();
+      switchTab('tab-studio');
+      showSnackbar(`Loaded "${template.name}"`);
+    }
+
+    /* =====================================================================
+       EXPORT & SHARING TOOLS
+       ===================================================================== */
+
+    function downloadChartPng() {
+      if (!chartInstance) return;
+      
+      const link = document.createElement('a');
+      link.download = `${appState.currentTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}_datacraft.png`;
+      link.href = chartInstance.toBase64Image('image/png', 1.0);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showSnackbar('PNG downloaded to gallery');
+    }
+
+    function copyCsvToClipboard() {
+      if (appState.rows.length === 0) return;
+      const headerLine = appState.columns.join(',');
+      const rowLines = appState.rows.map(r => appState.columns.map(c => `"${r[c] ?? ''}"`).join(','));
+      const csvContent = [headerLine, ...rowLines].join('\n');
+
+      copyTextSafely(csvContent, 'CSV data copied to clipboard');
+    }
+
+    function copySummaryText() {
+      const values = appState.rows.map(r => Number(r[appState.yCol]) || 0);
+      const total = values.reduce((a, b) => a + b, 0);
+      const avg = (total / values.length).toFixed(1);
+      
+      const text = `📊 DataCraft Report: ${appState.currentTitle}\n` +
+                   `• Dataset: ${appState.datasetName}\n` +
+                   `• Metric: ${appState.yCol}\n` +
+                   `• Sample Size: ${values.length} Categories\n` +
+                   `• Total Value: ${total}\n` +
+                   `• Average: ${avg}\n` +
+                   `Generated via DataCraft Android Studio.`;
+
+      copyTextSafely(text, 'Report summary copied');
+    }
+
+    function downloadJsonDataset() {
+      const payload = {
+        title: appState.currentTitle,
+        dataset: appState.datasetName,
+        xCol: appState.xCol,
+        yCol: appState.yCol,
+        columns: appState.columns,
+        data: appState.rows
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `datacraft_backup.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSnackbar('JSON exported successfully');
+    }
+
+    function copyTextSafely(text, successMsg) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showSnackbar(successMsg);
+      } catch (err) {
+        showSnackbar('Could not copy automatically');
+      }
+      document.body.removeChild(textarea);
+    }
+
+    /* =====================================================================
+       NAVIGATION & BOTTOM SHEET UTILS
+       ===================================================================== */
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.page-view').forEach(p => p.classList.add('hidden'));
+      document.getElementById(tabId).classList.remove('hidden');
+
+      // Update Navigation Indicator
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        const ind = btn.querySelector('.nav-indicator');
+        if (btn.dataset.target === tabId) {
+          btn.classList.add('text-blue-700', 'font-semibold');
+          btn.classList.remove('text-slate-600');
+          ind.classList.add('bg-blue-100');
+        } else {
+          btn.classList.remove('text-blue-700', 'font-semibold');
+          btn.classList.add('text-slate-600');
+          ind.classList.remove('bg-blue-100');
+        }
+      });
+
+      // Show/Hide Floating Action Button based on relevance
+      const fab = document.getElementById('mainFab');
+      if (tabId === 'tab-studio' || tabId === 'tab-editor') {
+        fab.style.display = 'flex';
+      } else {
+        fab.style.display = 'none';
+      }
+
+      // Re-render preview when switching to export tab
+      if (tabId === 'tab-export' && chartInstance) {
+        setTimeout(() => {
+          document.getElementById('exportPreviewImage').src = chartInstance.toBase64Image();
+        }, 100);
+      }
+
+      // Scroll top
+      document.getElementById('mainScrollArea').scrollTop = 0;
+    }
+
+    function openChartCustomizer() {
+      openSheet('customizerSheet');
+    }
+
+    function openSheet(id) {
+      const sheet = document.getElementById(id);
+      sheet.classList.remove('closed');
+    }
+
+    function closeSheet(id) {
+      const sheet = document.getElementById(id);
+      sheet.classList.add('closed');
+    }
+
+    // Close bottom sheet if overlay background clicked
+    document.querySelectorAll('.bottom-sheet').forEach(sheet => {
+      sheet.addEventListener('click', (e) => {
+        if (e.target === sheet) {
+          sheet.classList.add('closed');
+        }
+      });
+    });
+
+    function showSnackbar(text) {
+      const snackbar = document.getElementById('androidSnackbar');
+      document.getElementById('snackbarMessage').innerText = text;
+      snackbar.classList.remove('translate-y-32', 'opacity-0');
+      snackbar.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        snackbar.classList.remove('translate-y-0', 'opacity-100');
+        snackbar.classList.add('translate-y-32', 'opacity-0');
+      }, 2600);
+    }
+  </script>
+</body>
+</html>
